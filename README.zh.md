@@ -9,7 +9,7 @@
 
 如今每个编码 agent 都有自己的记忆，但都只留给自己：
 
-- **绑在一台机器上。** Claude Code、Codex、Kimi Code 的记忆都存在本地，换一台电脑就从零开始。
+- **绑在一台机器上。** Claude Code、Codex、Gemini CLI、Kimi Code、Antigravity、Hermes、OpenClaw 的记忆都存在本地，换一台电脑就从零开始。
 - **绑在一个厂商上。** Claude 学到的东西只属于 Claude，换成 Codex 又得从头讲一遍。
 - **绑在一个账号上。** 订阅到期、账号被封或工具停服，记忆也跟着消失。
 
