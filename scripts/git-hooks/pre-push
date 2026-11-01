@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# -----------------------------------------------------------------------------
+# agent-memory-nest pre-push guard
+#
+# A private nest holds personal memory and must never reach a public remote.
+# This hook refuses a push from a nest to the public template repository (or
+# its former Nestwork name), whatever the remote is called or which branch is
+# pushed. That is exactly how history leaked once: an agent working inside a
+# private nest pushed a branch to the template.
+#
+# Git runs this as `pre-push <remote-name> <remote-url>`. Installers point the
+# nest at it with `git config core.hooksPath scripts/git-hooks`.
+#
+# The template repository itself has no agent folders, so pushes from it pass.
+# Extra public URLs to refuse can be listed in config.md:
+#   public_remotes: "github.com/me/public-repo, gitlab.com/me/other"
+# -----------------------------------------------------------------------------
+
+set -u
+REMOTE_NAME="${1:-}"
+REMOTE_URL="${2:-}"
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+
+# A nest is any checkout that has at least one agent folder with content.
+is_nest=""
+for dir in "$ROOT"/agents/*/*/; do
+  [ -d "$dir" ] || continue
+  if [ -n "$(ls -A "$dir" 2>/dev/null)" ]; then
+    is_nest=1
+    break
+  fi
+done
+[ -z "$is_nest" ] && exit 0
+
+blocked="github.com/songth1ef/agent-memory-nest github.com/songth1ef/nest""work"
+extra=""
+if command -v python3 >/dev/null 2>&1 && [ -f "$ROOT/scripts/lib/nest_config.py" ]; then
+  extra="$(python3 "$ROOT/scripts/lib/nest_config.py" get public_remotes --root "$ROOT" 2>/dev/null || true)"
+fi
+
+# Reduce every URL form (https://, ssh://, git@host:path) to host/path, lowercased
+# and without a trailing .git or slash, so one pattern covers them all.
+normalize() {
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' \
+    | sed -E 's#^[a-z+]+://##; s#^[^@/]+@##; s#^([^/:]+):#\1/#; s#/+$##; s#\.git$##'
+}
+
+url="$(normalize "$REMOTE_URL")"
+for pattern in $blocked $(printf '%s' "$extra" | tr ',' ' '); do
+  pattern="$(normalize "$pattern")"
+  [ -z "$pattern" ] && continue
+  if [ "$url" = "$pattern" ]; then
+    echo "[x] agent-memory-nest: refusing to push this private nest to a public repository" >&2
+    echo "    remote: ${REMOTE_NAME} ${REMOTE_URL}" >&2
+    echo "    Your nest's history contains personal memory. Push only to your own private remote." >&2
+    exit 1
+  fi
+done
+exit 0

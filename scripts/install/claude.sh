@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ---------------------------------------------
+# agent-nest x Claude Code installer
+# ---------------------------------------------
+
+AGENT_NEST_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CLAUDE_DIR="$HOME/.claude"
+SETTINGS="$CLAUDE_DIR/settings.json"
+
+# Resolve (host, agent-id) via shared identity helper. Claude uses a random
+# suffix so multiple installs on one machine stay distinct.
+IDENTITY="$(python3 "$AGENT_NEST_PATH/scripts/install/_identity.py" claude --with-suffix)"
+HOST="$(printf '%s\n' "$IDENTITY" | sed -n 1p)"
+AGENT_ID="$(printf '%s\n' "$IDENTITY" | sed -n 2p)"
+if [ -z "$HOST" ] || [ -z "$AGENT_ID" ]; then
+  echo "ERROR: identity resolver returned host='$HOST' agent='$AGENT_ID' (expected two non-empty lines); check python3 and scripts/install/_identity.py" >&2
+  exit 1
+fi
+AGENT_DIR="$AGENT_NEST_PATH/agents/$HOST/$AGENT_ID"
+
+echo "-> agent-nest path : $AGENT_NEST_PATH"
+echo "-> host           : $HOST"
+echo "-> agent id       : $AGENT_ID"
+
+# 1. Create this agent's memory directory
+mkdir -p "$AGENT_DIR"
+if [ ! -f "$AGENT_DIR/memory.md" ]; then
+  cat > "$AGENT_DIR/memory.md" <<EOF
+# MEMORY -- $HOST/$AGENT_ID
+
+> Private memory for this agent instance.
+> Only $HOST/$AGENT_ID writes here.
+
+---
+
+_No memory yet._
+EOF
+  echo "[ok] created $AGENT_DIR/memory.md"
+fi
+
+# 2. Inject agent-nest bootstrap into global CLAUDE.md.
+#    Preserves any existing user content via HTML-comment marker block.
+mkdir -p "$CLAUDE_DIR"
+python3 "$AGENT_NEST_PATH/scripts/install/_bootstrap.py" \
+  "$CLAUDE_DIR/CLAUDE.md" "$AGENT_NEST_PATH" "$HOST" "$AGENT_ID"
+
+# 3. Register hooks: SessionStart / PreToolUse / PostToolUse / Stop
+#    Atomic per-write sync: pull before every memory Write/Edit,
+#    commit+push right after. The Stop hook is a per-turn safety net and runs
+#    the layout checker. A reinstall removes any SessionEnd entry left by an
+#    older install.
+mkdir -p "$CLAUDE_DIR"
+
+if [ ! -f "$SETTINGS" ]; then
+  echo '{}' > "$SETTINGS"
+fi
+
+python3 "$AGENT_NEST_PATH/scripts/install/_hooks.py" \
+  "$SETTINGS" "$AGENT_NEST_PATH" "$HOST" "$AGENT_ID"
+
+echo ""
+echo "OK agent-nest installed for Claude Code"
+echo "   agent : $HOST/$AGENT_ID"
+echo "   memory: $AGENT_DIR/memory.md"

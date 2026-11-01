@@ -1,0 +1,212 @@
+import json
+import subprocess
+import sys
+import unittest
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+BOOTSTRAP = REPO_ROOT / "scripts" / "install" / "_bootstrap.py"
+HOOKS = REPO_ROOT / "scripts" / "install" / "_hooks.py"
+CODEX_HOOKS = REPO_ROOT / "scripts" / "install" / "_codex_hooks.py"
+ANTIGRAVITY_HOOKS = REPO_ROOT / "scripts" / "install" / "_antigravity_hooks.py"
+UNBOOTSTRAP = REPO_ROOT / "scripts" / "uninstall" / "_unbootstrap.py"
+UNHOOKS = REPO_ROOT / "scripts" / "uninstall" / "_unhooks.py"
+CODEX_UNHOOKS = REPO_ROOT / "scripts" / "uninstall" / "_codex_unhooks.py"
+ANTIGRAVITY_UNHOOKS = REPO_ROOT / "scripts" / "uninstall" / "_antigravity_unhooks.py"
+TMP_ROOT = REPO_ROOT / ".test-tmp"
+
+
+def run(script: Path, *args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [sys.executable, str(script), *[str(a) for a in args]],
+        capture_output=True,
+        text=True,
+    )
+
+
+class UnbootstrapTests(unittest.TestCase):
+    def setUp(self) -> None:
+        TMP_ROOT.mkdir(exist_ok=True)
+        self.target = TMP_ROOT / "unbootstrap-test.md"
+
+    def tearDown(self) -> None:
+        self.target.unlink(missing_ok=True)
+
+    def install_block(self, preexisting: str = "") -> None:
+        if preexisting:
+            self.target.write_text(preexisting, encoding="utf-8")
+        completed = run(BOOTSTRAP, self.target, "/tmp/nest", "hosta", "claude-ab12")
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_removes_block_and_preserves_user_content(self) -> None:
+        user_content = "# My own rules\n\nKeep me around.\n"
+        self.install_block(preexisting=user_content)
+        installed = self.target.read_text(encoding="utf-8")
+        self.assertIn("agent-memory-nest Startup Protocol", installed)
+
+        completed = run(UNBOOTSTRAP, self.target)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+        remaining = self.target.read_text(encoding="utf-8")
+        self.assertNotIn("agent-nest:begin", remaining)
+        self.assertNotIn("agent-memory-nest Startup Protocol", remaining)
+        self.assertIn("# My own rules", remaining)
+        self.assertIn("Keep me around.", remaining)
+
+    def test_deletes_file_that_only_held_the_block(self) -> None:
+        self.install_block()
+        completed = run(UNBOOTSTRAP, self.target)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertFalse(self.target.exists())
+
+    def test_noop_without_markers(self) -> None:
+        content = "# Unrelated file\n"
+        self.target.write_text(content, encoding="utf-8")
+        completed = run(UNBOOTSTRAP, self.target)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(self.target.read_text(encoding="utf-8"), content)
+        self.assertIn("nothing to remove", completed.stdout)
+
+    def test_noop_on_missing_file(self) -> None:
+        completed = run(UNBOOTSTRAP, TMP_ROOT / "does-not-exist.md")
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_install_uninstall_roundtrip_is_stable(self) -> None:
+        user_content = "before\n"
+        self.install_block(preexisting=user_content)
+        run(UNBOOTSTRAP, self.target)
+        first = self.target.read_text(encoding="utf-8")
+        self.install_block(preexisting="")
+        run(UNBOOTSTRAP, self.target)
+        second = self.target.read_text(encoding="utf-8")
+        self.assertEqual(first, second)
+
+
+class UnhooksTests(unittest.TestCase):
+    def setUp(self) -> None:
+        TMP_ROOT.mkdir(exist_ok=True)
+        self.settings = TMP_ROOT / "unhooks-settings.json"
+
+    def tearDown(self) -> None:
+        self.settings.unlink(missing_ok=True)
+
+    def test_removes_all_events_and_keeps_user_hooks(self) -> None:
+        user_hook = {
+            "matcher": "Bash",
+            "hooks": [{"type": "command", "command": "echo user-hook"}],
+        }
+        self.settings.write_text(
+            json.dumps({"model": "opus", "hooks": {"PreToolUse": [user_hook]}}),
+            encoding="utf-8",
+        )
+
+        completed = run(HOOKS, self.settings, "/tmp/nest", "hosta", "claude-ab12")
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        installed = json.loads(self.settings.read_text(encoding="utf-8"))
+        self.assertEqual(sorted(installed["hooks"]), ["PostToolUse", "PreToolUse", "SessionStart", "Stop"])
+
+        completed = run(UNHOOKS, self.settings, "hosta", "claude-ab12")
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+        cleaned = json.loads(self.settings.read_text(encoding="utf-8"))
+        self.assertEqual(cleaned.get("model"), "opus")
+        self.assertEqual(cleaned["hooks"], {"PreToolUse": [user_hook]})
+
+    def test_removes_hooks_even_without_identity(self) -> None:
+        self.settings.write_text("{}", encoding="utf-8")
+        run(HOOKS, self.settings, "/tmp/nest", "hosta", "claude-ab12")
+
+        completed = run(UNHOOKS, self.settings, "", "")
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+        cleaned = json.loads(self.settings.read_text(encoding="utf-8"))
+        self.assertNotIn("hooks", cleaned)
+
+    def test_noop_on_missing_settings(self) -> None:
+        completed = run(UNHOOKS, TMP_ROOT / "no-settings.json", "h", "a")
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+
+class CodexUnhooksTests(unittest.TestCase):
+    def setUp(self) -> None:
+        TMP_ROOT.mkdir(exist_ok=True)
+        self.config = TMP_ROOT / "unhooks-config.toml"
+        self.hooks = TMP_ROOT / "unhooks-hooks.json"
+
+    def tearDown(self) -> None:
+        self.config.unlink(missing_ok=True)
+        self.hooks.unlink(missing_ok=True)
+
+    def test_removes_all_agent_nest_hooks_and_keeps_user_hooks(self) -> None:
+        user_entry = {
+            "hooks": [{"type": "command", "command": "echo user-stop", "timeout": 5}]
+        }
+        self.hooks.write_text(
+            json.dumps({"hooks": {"Stop": [user_entry]}}), encoding="utf-8"
+        )
+
+        completed = run(
+            CODEX_HOOKS, self.config, self.hooks, "/tmp/agent-nest", "hosta", "codex"
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        installed = json.loads(self.hooks.read_text(encoding="utf-8"))["hooks"]
+        self.assertEqual(installed["Stop"][0], user_entry)
+        self.assertEqual(len(installed["Stop"]), 2)
+        for event in ("PreToolUse", "PostToolUse"):
+            self.assertEqual(len(installed[event]), 1, event)
+        self.assertNotIn("SessionEnd", installed)
+
+        completed = run(CODEX_UNHOOKS, self.hooks)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+        cleaned = json.loads(self.hooks.read_text(encoding="utf-8"))["hooks"]
+        self.assertEqual(cleaned["Stop"], [user_entry])
+        for event in ("PreToolUse", "PostToolUse", "SessionEnd"):
+            self.assertNotIn(event, cleaned)
+
+    def test_noop_on_missing_hooks_file(self) -> None:
+        completed = run(CODEX_UNHOOKS, TMP_ROOT / "no-hooks.json")
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+
+class AntigravityUnhooksTests(unittest.TestCase):
+    def setUp(self) -> None:
+        TMP_ROOT.mkdir(exist_ok=True)
+        self.hooks = TMP_ROOT / "unhooks-antigravity-hooks.json"
+
+    def tearDown(self) -> None:
+        self.hooks.unlink(missing_ok=True)
+
+    def test_removes_agent_nest_hooks_and_keeps_user_hooks(self) -> None:
+        user_entry = {
+            "PreInvocation": [{"type": "command", "command": "echo user-pre"}]
+        }
+        self.hooks.write_text(
+            json.dumps({"my-custom-hook": user_entry}), encoding="utf-8"
+        )
+
+        completed = run(
+            ANTIGRAVITY_HOOKS, self.hooks, "/tmp/agent-nest", "hosta", "antigravity"
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        installed = json.loads(self.hooks.read_text(encoding="utf-8"))
+        self.assertIn("my-custom-hook", installed)
+        self.assertIn("agent-nest", installed)
+        self.assertEqual(len(installed["agent-nest"]["PreInvocation"]), 1)
+        self.assertEqual(len(installed["agent-nest"]["Stop"]), 1)
+
+        completed = run(ANTIGRAVITY_UNHOOKS, self.hooks)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+        cleaned = json.loads(self.hooks.read_text(encoding="utf-8"))
+        self.assertIn("my-custom-hook", cleaned)
+        self.assertNotIn("agent-nest", cleaned)
+
+    def test_noop_on_missing_hooks_file(self) -> None:
+        completed = run(ANTIGRAVITY_UNHOOKS, TMP_ROOT / "no-antigravity-hooks.json")
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()

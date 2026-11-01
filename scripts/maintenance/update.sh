@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+set -e -o pipefail
+
+# -----------------------------------------------------------------------------
+# agent-nest updater
+#
+# Pulls protocol-layer changes from upstream (songth1ef/agent-memory-nest) into your
+# private nest. Never touches agents/, queen/, shared/, config.md or projects/ -- those
+# belong to you.
+#
+# Usage:
+#   bash ~/my-nest/scripts/maintenance/update.sh
+# -----------------------------------------------------------------------------
+
+AGENT_NEST_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+UPSTREAM_URL="https://github.com/songth1ef/agent-memory-nest.git"
+UPSTREAM_BRANCH="main"
+
+# Protocol-layer files that are safe to overwrite from upstream.
+# queen/, agents/, shared/, projects/ are intentionally excluded.
+#
+# .github/workflows/ is included so CI workflow fixes (e.g. the YAML
+# indentation bug fixed in agent-nest 43ae297) reach every private nest.
+# If you need per-nest workflow customization, do it via repo-level
+# Variables or Secrets rather than editing the YAML in place.
+# Keep this list in sync with PROTOCOL_PATHS in
+# .github/workflows/sync-upstream.yml (which carries everything here except
+# .github/workflows/ — GITHUB_TOKEN cannot push workflow files).
+PROTOCOL_FILES=(
+  scripts/
+  tests/
+  AGENTS.md
+  CLAUDE.md
+  README.md
+  README.zh.md
+  CHANGELOG.md
+  CHANGELOG.zh.md
+  LICENSE
+  VERSION
+  config.example.md
+  docs/
+  schemas/
+  workflow/README.md
+  workflow/_template.md
+  projects/_template.md
+  decisions/_template.md
+  decisions/README.md
+)
+
+cd "$AGENT_NEST_PATH"
+
+# Refuse to overwrite local edits or include unrelated staged work in the commit.
+if [ -n "$(git status --porcelain)" ]; then
+  echo "ERROR: commit or stash local changes before updating the protocol." >&2
+  exit 1
+fi
+
+# -- 1. Ensure upstream remote exists -----------------------------------------
+if ! git remote get-url upstream > /dev/null 2>&1; then
+  git remote add upstream "$UPSTREAM_URL"
+  echo "[ok] added upstream: $UPSTREAM_URL"
+else
+  echo "[ok] upstream: $(git remote get-url upstream)"
+fi
+
+# A private nest must never push to the public upstream: one push of a branch
+# based on the nest's main publishes its whole history, and deleting the branch
+# afterwards does not remove the objects from GitHub. Fetch keeps working.
+PUSH_BLOCK="DISABLED--private-nest-must-not-push-to-public-upstream"
+if [ "$(git remote get-url --push upstream 2>/dev/null)" != "$PUSH_BLOCK" ]; then
+  git remote set-url --push upstream "$PUSH_BLOCK"
+  echo "[ok] disabled pushing to upstream (fetch-only)"
+fi
+
+# -- 2. Fetch upstream --------------------------------------------------------
+echo "-> fetching upstream/$UPSTREAM_BRANCH ..."
+git fetch upstream "$UPSTREAM_BRANCH" -q
+echo "[ok] fetched"
+
+# -- 3. Check if protocol layer has changes -----------------------------------
+if git diff --quiet HEAD upstream/"$UPSTREAM_BRANCH" -- "${PROTOCOL_FILES[@]}" 2>/dev/null; then
+  echo ""
+  echo "OK already up to date -- no protocol changes"
+  exit 0
+fi
+
+# -- 4. Show what will change -------------------------------------------------
+echo ""
+echo "--- incoming protocol changes -------------------------------------------"
+git diff HEAD upstream/"$UPSTREAM_BRANCH" --stat -- "${PROTOCOL_FILES[@]}"
+echo "-------------------------------------------------------------------------"
+echo ""
+echo "Never touched: agents/  queen/  shared/  config.md  and your own files in projects/ and decisions/"
+echo "Updated:       the shipped templates only -- projects/_template.md,"
+echo "               decisions/_template.md, decisions/README.md"
+echo ""
+
+# -- 5. Confirm ---------------------------------------------------------------
+read -r -p "Apply update? [y/N] " CONFIRM
+if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
+  echo "aborted"
+  exit 0
+fi
+
+# -- 6. Apply protocol-layer files from upstream ------------------------------
+# Per-path so one file missing upstream (renamed/removed in a future protocol
+# version) skips with a note instead of aborting the whole update mid-way.
+for p in "${PROTOCOL_FILES[@]}"; do
+  if ! git cat-file -e "upstream/$UPSTREAM_BRANCH:${p%/}" 2>/dev/null; then
+    echo "[skip] $p (not present upstream)"
+    continue
+  fi
+  # Extract upstream plaintext without running the private nest's smudge filter.
+  # Checking plaintext out through git-crypt can truncate short files (VERSION).
+  # Stage through the nest's clean filter so committed blobs remain encrypted.
+  git archive "upstream/$UPSTREAM_BRANCH" -- "$p" | tar -x -C "$AGENT_NEST_PATH"
+  git add -- "$p"
+done
+
+# Extraction/staging failures abort before commit; never suppress filter errors.
+echo "[ok] protocol layer updated"
+
+# -- 7. Commit ----------------------------------------------------------------
+if git diff --cached --quiet; then
+  echo "nothing to commit (files already identical)"
+else
+  git commit -m "chore: update agent-nest protocol from upstream"
+  echo "[ok] committed"
+fi
+
+echo ""
+echo "OK done. run 'git push' when ready."
