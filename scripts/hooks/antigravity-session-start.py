@@ -124,6 +124,9 @@ def main() -> None:
         try:
             subprocess.run(
                 ["bash", read_sh, "--write", inbox_full],
+                # read.sh finds its repository from the working directory;
+                # Antigravity may be running in an unrelated project.
+                cwd=nest,
                 env=env,
                 capture_output=True,
                 timeout=10,

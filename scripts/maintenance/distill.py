@@ -19,6 +19,7 @@
 # -----------------------------------------------------------------------------
 
 import argparse
+import hashlib
 import importlib.util
 import io
 import os
@@ -383,16 +384,41 @@ def run_git(agent_nest_path: Path, *args: str, check: bool = True) -> subprocess
     )
 
 
+def shared_fingerprint(agent_nest_path: Path) -> str:
+    """Hash of every file under shared/, to notice changes made while the model ran."""
+    digest = hashlib.sha256()
+    shared = agent_nest_path / "shared"
+    for path in sorted(p for p in shared.rglob("*") if p.is_file()):
+        digest.update(path.relative_to(shared).as_posix().encode("utf-8") + b"\0")
+        digest.update(path.read_bytes() + b"\0")
+    return digest.hexdigest()
+
+
+def refresh_and_verify(agent_nest_path: Path, expected: str | None) -> None:
+    """Pull, then refuse to write if shared/ no longer matches the prompt's input.
+
+    Writing a candidate built from an older shared/ would silently drop facts
+    another machine added in the meantime; distillation must merge them instead.
+    """
+    run_git(agent_nest_path, "pull", "--rebase", "--autostash", "-q")
+    if expected is not None and shared_fingerprint(agent_nest_path) != expected:
+        raise ValueError(
+            "shared/ changed upstream after the prompt was built; nothing was written. "
+            "Run the distillation again so those changes are merged."
+        )
+
+
 def write_shared_memory(
     agent_nest_path: Path,
     shared_content: str,
     *,
     commit: bool,
     push: bool,
+    expected: str | None = None,
 ) -> None:
     shared_path = agent_nest_path / "shared" / "memory.md"
     if commit:
-        run_git(agent_nest_path, "pull", "--rebase", "--autostash", "-q")
+        refresh_and_verify(agent_nest_path, expected)
 
     shared_path.write_text(shared_content, encoding="utf-8")
     if not commit:
@@ -422,9 +448,10 @@ def write_topic_files(
     *,
     commit: bool,
     push: bool,
+    expected: str | None = None,
 ) -> None:
     if commit:
-        run_git(agent_nest_path, "pull", "--rebase", "--autostash", "-q")
+        refresh_and_verify(agent_nest_path, expected)
 
     for name, body in files.items():
         path = agent_nest_path / name
@@ -510,6 +537,18 @@ def main() -> int:
     commit = args.commit and not args.no_commit
     agent_nest_path = Path(args.agent_nest_path).resolve()
     shared_file = agent_nest_path / "shared" / "memory.md"
+    runs_model = args.run_claude or args.run_codex
+
+    # Committing writes straight into shared/, so start from the latest remote
+    # state and remember it; the write step refuses if it moved meanwhile.
+    expected = None
+    if commit and runs_model:
+        try:
+            run_git(agent_nest_path, "pull", "--rebase", "--autostash", "-q")
+        except subprocess.CalledProcessError as exc:
+            print(f"Error: could not refresh the nest before distilling: {(exc.stderr or '').strip()}", file=sys.stderr)
+            return 1
+        expected = shared_fingerprint(agent_nest_path)
 
     try:
         memory_data = collect_memory_data(agent_nest_path)
@@ -564,7 +603,7 @@ def main() -> int:
                 print(f"<<<FILE {name}\n{body}>>>END")
             return 0
         try:
-            write_topic_files(agent_nest_path, topic_files, commit=commit, push=not args.no_push)
+            write_topic_files(agent_nest_path, topic_files, commit=commit, push=not args.no_push, expected=expected)
         except (ValueError, subprocess.CalledProcessError) as exc:
             stderr = getattr(exc, "stderr", None)
             print(f"Error: {stderr.strip() if stderr else exc}", file=sys.stderr)
@@ -589,9 +628,11 @@ def main() -> int:
             shared_content,
             commit=commit,
             push=not args.no_push,
+            expected=expected,
         )
-    except subprocess.CalledProcessError as exc:
-        stderr = exc.stderr.strip() if exc.stderr else str(exc)
+    except (ValueError, subprocess.CalledProcessError) as exc:
+        stderr = getattr(exc, "stderr", None)
+        stderr = stderr.strip() if stderr else str(exc)
         print(f"Error: {stderr}", file=sys.stderr)
         return 1
 

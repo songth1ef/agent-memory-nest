@@ -253,5 +253,82 @@ class DistillTests(unittest.TestCase):
             shutil.rmtree(TMP_ROOT)
 
 
+    # -- Codex review on PR #1: a commit must not overwrite shared/ changes that
+    # reached the remote while the model was running.
+    def make_two_clones(self, base: Path):
+        env = dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_SYSTEM=os.devnull)
+        origin = base / "origin.git"
+        subprocess.run(["git", "init", "--bare", "-q", "-b", "main", str(origin)], check=True, env=env)
+        a, b = base / "a", base / "b"
+        a.mkdir()
+        self.create_repo_fixture(a)
+        for args in (("init", "-q", "-b", "main"), ("config", "user.name", "t"), ("config", "user.email", "t@example.com"),
+                     ("add", "."), ("commit", "-q", "-m", "init"), ("remote", "add", "origin", str(origin)),
+                     ("push", "-q", "-u", "origin", "main")):
+            subprocess.run(["git", "-C", str(a), *args], check=True, env=env, capture_output=True)
+        subprocess.run(["git", "clone", "-q", str(origin), str(b)], check=True, env=env)
+        for args in (("config", "user.name", "t"), ("config", "user.email", "t@example.com")):
+            subprocess.run(["git", "-C", str(b), *args], check=True, env=env)
+        return env, origin, a, b
+
+    def push_shared_fact(self, clone: Path, fact: str) -> str:
+        return (
+            f"import subprocess\n"
+            f"p = {str(clone / 'shared' / 'memory.md')!r}\n"
+            f"open(p, 'a', encoding='utf-8').write('- {fact}\\n')\n"
+            f"for a in (['commit', '-qam', 'remote fact'], ['push', '-q']):\n"
+            f"    subprocess.run(['git', '-C', {str(clone)!r}, *a], check=True)\n"
+        )
+
+    def fake_claude_with_side_effect(self, bin_dir: Path, side_effect: str, response: str) -> Path:
+        bin_dir.mkdir(parents=True, exist_ok=True)
+        prompt_log = bin_dir / "prompt.txt"
+        shim = bin_dir / "claude"
+        shim.write_text(
+            "#!/usr/bin/env python3\nimport pathlib, sys\n"
+            f"pathlib.Path({str(prompt_log)!r}).write_text(sys.stdin.read(), encoding='utf-8')\n"
+            + side_effect + f"sys.stdout.write({response!r})\n",
+            encoding="utf-8",
+        )
+        shim.chmod(shim.stat().st_mode | stat.S_IEXEC)
+        return prompt_log
+
+    def test_commit_refuses_to_overwrite_shared_changes_made_during_the_run(self) -> None:
+        TMP_ROOT.mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=TMP_ROOT) as tmp:
+            env, origin, a, b = self.make_two_clones(Path(tmp))
+            bin_dir = Path(tmp) / "bin"
+            self.fake_claude_with_side_effect(
+                bin_dir, self.push_shared_fact(b, "added elsewhere"),
+                "```markdown\n# SHARED MEMORY\n\n- stale candidate\n```\n",
+            )
+            env["PATH"] = f"{bin_dir}:{env['PATH']}"
+            completed = self.run_distill(a, "--run-claude", "--commit", env=env)
+
+            self.assertEqual(completed.returncode, 1, completed.stdout)
+            self.assertIn("changed upstream", completed.stderr)
+            remote = subprocess.run(["git", "-C", str(origin), "show", "main:shared/memory.md"],
+                                    capture_output=True, text=True, env=env).stdout
+            self.assertIn("added elsewhere", remote)
+            self.assertNotIn("stale candidate", remote)
+
+    def test_commit_refreshes_before_building_the_prompt(self) -> None:
+        TMP_ROOT.mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=TMP_ROOT) as tmp:
+            env, origin, a, b = self.make_two_clones(Path(tmp))
+            subprocess.run([sys.executable, "-c", self.push_shared_fact(b, "already on remote")], check=True, env=env)
+            bin_dir = Path(tmp) / "bin"
+            prompt_log = self.fake_claude_with_side_effect(
+                bin_dir, "", "```markdown\n# SHARED MEMORY\n\n- already on remote\n- merged\n```\n",
+            )
+            env["PATH"] = f"{bin_dir}:{env['PATH']}"
+            completed = self.run_distill(a, "--run-claude", "--commit", env=env)
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("already on remote", prompt_log.read_text(encoding="utf-8"))
+            log = subprocess.run(["git", "-C", str(origin), "log", "-1", "--format=%s", "main"],
+                                 capture_output=True, text=True, env=env).stdout.strip()
+            self.assertEqual(log, "memory: distill shared")
+
 if __name__ == "__main__":
     unittest.main()
