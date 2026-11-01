@@ -17,7 +17,7 @@ import subprocess
 import unittest
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = next(p for p in Path(__file__).resolve().parents if (p / "AGENTS.md").is_file())
 BLOCKED_SHA256 = {
     "0e034f278cd9a66d6c1cecbd8a9cd9e44658cc1dba30eae317631bf12739be09",
     "12c18ee887b05acff6ad4a75f5f55dfd383320259099dbcfb62db54902499f39",

@@ -31,6 +31,19 @@ agent-memory-nest 把这些记忆搬进一个归你所有的 git 仓库。每个
 
 ## 快速开始
 
+**最快的方式：** 把下面这段粘贴给你正在用的编码 agent（Claude Code、Codex、Kimi Code、Gemini CLI……），让它替你装好：
+
+```text
+帮我安装 agent-memory-nest（https://github.com/songth1ef/agent-memory-nest）。
+如果我还没有巢，就用这个模板建一个【私有】仓库：
+  gh repo create my-nest --private --template songth1ef/agent-memory-nest
+把我的巢 clone 到 ~/agent-memory-nest（已存在就 pull），然后运行你这个工具
+对应的安装脚本：scripts/install/<工具>/install.sh（Windows 用 install.ps1）。
+不要把仓库设为公开。装完告诉我装了什么。
+```
+
+或者手动一步步来：
+
 1. **用这个模板建一个私有巢。** 在 GitHub 上点 **Use this template**，选 **Private**；或者运行：
 
    ```bash
@@ -46,7 +59,7 @@ agent-memory-nest 把这些记忆搬进一个归你所有的 git 仓库。每个
 3. **给每个 agent 工具安装**（Windows 用对应的 `.ps1`）：
 
    ```bash
-   bash ~/agent-memory-nest/scripts/install/claude.sh
+   bash ~/agent-memory-nest/scripts/install/claude/install.sh
    ```
 
 4. **开一个新会话。** 有启动 hook 的工具会打印 `agent-nest context bundle`；任何工具都可以问 agent 一句「巢里关于我写了什么？」，确认它读到了规则。
@@ -134,17 +147,17 @@ agent-memory-nest 把这些记忆搬进一个归你所有的 git 仓库。每个
 
 | 工具 | 安装 | 同步方式 |
 |---|---|---|
-| Claude Code | `scripts/install/claude.sh` | hook：会话开始、每次写入、回合结束（含规则检查） |
-| Codex | `scripts/install/codex.sh` | hook：每次写入、回合结束 |
-| Kimi Code | `scripts/install/kimi.sh` | hook：会话开始、每次写入、回合结束 |
-| Antigravity | `scripts/install/antigravity.sh` | hook：会话开始、回合结束 |
-| Gemini CLI | `scripts/install/gemini.sh` | 启动指令；agent 在会话结束时同步 |
-| Hermes | `scripts/install/hermes.sh` | 写在 `SOUL.md` 里的启动指令 |
-| OpenClaw | `scripts/install/openclaw.sh` | 启动指令 |
-| 豆包办公、WorkBuddy | `scripts/install/doubao.sh`、`workbuddy.sh` | 在对话里执行的启动指令 |
-| 任何读取 markdown 指令文件的工具 | `scripts/install/generic.sh <名称> <文件>` | 启动指令 |
+| Claude Code | `scripts/install/claude/install.sh` | hook：会话开始、每次写入、回合结束（含规则检查） |
+| Codex | `scripts/install/codex/install.sh` | hook：每次写入、回合结束 |
+| Kimi Code | `scripts/install/kimi/install.sh` | hook：会话开始、每次写入、回合结束 |
+| Antigravity | `scripts/install/antigravity/install.sh` | hook：会话开始、回合结束 |
+| Gemini CLI | `scripts/install/gemini/install.sh` | 启动指令；agent 在会话结束时同步 |
+| Hermes | `scripts/install/hermes/install.sh` | 写在 `SOUL.md` 里的启动指令 |
+| OpenClaw | `scripts/install/openclaw/install.sh` | 启动指令 |
+| 豆包办公、WorkBuddy | `scripts/install/doubao/install.sh`、`scripts/install/workbuddy/install.sh` | 在对话里执行的启动指令 |
+| 任何读取 markdown 指令文件的工具 | `scripts/install/generic/install.sh <名称> <文件>` | 启动指令 |
 
-每个安装脚本都有对应的 PowerShell 版本，`scripts/uninstall/` 里有配套的卸载脚本：只移除它装上的东西，永远不碰你的记忆。
+每个安装脚本都有对应的 PowerShell 版本，`scripts/uninstall/<工具>/` 里有配套的卸载脚本：只移除它装上的东西，永远不碰你的记忆。
 
 ## 目录结构
 
@@ -157,7 +170,7 @@ projects/         每个项目一份状态笔记
 workflow/         换了工作也带得走的方法
 decisions/        关于巢本身的决策记录
 config.md         整个巢的设置（从 config.example.md 复制）
-AGENTS.md         所有 agent 遵守的协议（CLAUDE.md 是它的副本）
+AGENTS.md         所有 agent 遵守的协议（CLAUDE.md 直接引用它）
 scripts/          安装、hook、蒸馏、规则检查、信箱
 docs/             信箱、加密、记忆结转、故障排查
 ```

@@ -75,26 +75,31 @@ pull_rebase() {
 commit_push_retry() {
   cd "$AGENT_NEST_PATH" || return 1
   git add "$AGENT_REL_PATH/" >/dev/null 2>&1 || return 1
-  git diff --cached --quiet -- "$AGENT_REL_PATH/" && return 0
+  if ! git diff --cached --quiet -- "$AGENT_REL_PATH/"; then
+    git commit -m "memory: update $HOST_ID/$AGENT_ID" -q -- "$AGENT_REL_PATH/" || return 1
+  fi
 
-  git commit -m "memory: update $HOST_ID/$AGENT_ID" -q -- "$AGENT_REL_PATH/" || return 1
+  # Push whenever local commits are ahead of upstream, not only right after a
+  # commit: an earlier push may have failed (offline, rejected) and a clean
+  # tree must not stop the safety net from delivering it.
+  git rev-parse -q --verify '@{u}' >/dev/null 2>&1 || return 0
+  [ "$(git rev-list --count '@{u}..HEAD' 2>/dev/null || echo 0)" -gt 0 ] || return 0
+
   local attempt
   for attempt in 1 2 3; do
     if git push -q 2>/dev/null; then
       return 0
     fi
-    # push rejected -- backoff with jitter (~0.5s, ~1s, ~2s) to reduce
-    # thundering-herd when multiple agents commit concurrently, then
-    # undo local commit, rebase, re-commit, retry.
+    # Push rejected: back off with jitter (~0.5s, ~1s, ~2s) so agents that
+    # commit at the same moment do not collide again, then replay the local
+    # commits on top of the remote and retry.
     sleep "$(awk -v a="$attempt" 'BEGIN{srand(); printf "%.2f", (2^(a-1))*0.5 + rand()*0.3}')"
-    git reset --soft HEAD~1 >/dev/null 2>&1
     if ! pull_rebase; then
       echo "[!] agent-nest[$HOST_ID/$AGENT_ID]: rebase conflict, memory not pushed, manual merge needed" >&2
       return 1
     fi
-    git commit -m "memory: update $HOST_ID/$AGENT_ID" -q -- "$AGENT_REL_PATH/" || return 1
   done
-  echo "[!] agent-nest[$HOST_ID/$AGENT_ID]: push retried 3 times, all failed; local commit kept, will retry on next hook" >&2
+  echo "[!] agent-nest[$HOST_ID/$AGENT_ID]: push retried 3 times, all failed; local commit kept, the next hook retries" >&2
   return 1
 }
 

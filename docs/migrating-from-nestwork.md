@@ -63,7 +63,7 @@ Run these in your private nest, on one machine, with a clean working tree.
 
    ```bash
    git -C ~/your-nest pull
-   bash ~/your-nest/scripts/install/claude.sh   # and codex.sh, kimi.sh, ...
+   bash ~/your-nest/scripts/install/claude/install.sh   # and codex/install.sh, kimi/install.sh, ...
    ```
 
    For Codex, run `/hooks` once afterwards to trust the changed hooks.

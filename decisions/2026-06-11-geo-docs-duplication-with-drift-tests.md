@@ -45,7 +45,8 @@ themselves go stale the way hardcoded assertions did.
   marker must be covered by `tests/test_docs_consistency.py` (the chain and
   version tests already scan all markdown / derive from source files, so
   most new copies are covered automatically).
-- CLAUDE.md is enforced as a byte-exact mirror of AGENTS.md; edit AGENTS.md
+- (Superseded in agent-memory-nest 1.0: CLAUDE.md now only imports AGENTS.md with `@AGENTS.md`.)
+  Previously: CLAUDE.md is enforced as a byte-exact mirror of AGENTS.md; edit AGENTS.md
   and regenerate, never edit CLAUDE.md directly.
 - If the stub count grows well beyond the current ~8 files, revisit the
   generate-from-template option.
