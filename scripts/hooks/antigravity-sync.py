@@ -18,6 +18,20 @@ import sys
 import time
 
 
+def warn(message: str) -> None:
+    sys.stderr.write(f"[!] agent-nest antigravity sync: {message}\n")
+
+
+def stash_count(nest: str) -> int:
+    rc, out = git_cmd(nest, "stash", "list")
+    return len(out.splitlines()) if rc == 0 and out else 0
+
+
+def has_conflicts(nest: str) -> bool:
+    rc, out = git_cmd(nest, "diff", "--name-only", "--diff-filter=U")
+    return rc == 0 and bool(out.strip())
+
+
 def git_cmd(nest: str, *args: str, timeout: int = 20) -> tuple[int, str]:
     try:
         r = subprocess.run(
@@ -108,7 +122,12 @@ def main() -> None:
         print("{}")
         return
 
-    # Push with backoff and retry (up to 3 attempts)
+    # Push with backoff and retry (up to 3 attempts). The memory stays committed
+    # throughout: a failed push replays the local commit on top of the remote with
+    # `pull --rebase`, so a real conflict aborts the rebase and keeps the commit
+    # instead of turning it back into working-tree edits. An autostash of other
+    # uncommitted files that cannot be re-applied leaves a stash entry while git
+    # still exits 0; stop there rather than publish anything.
     for attempt in range(1, 4):
         rc, _ = git_cmd(nest, "push", "-q")
         if rc == 0:
@@ -116,12 +135,15 @@ def main() -> None:
             return
         sleep_sec = (2 ** (attempt - 1)) * 0.5 + random.uniform(0.0, 0.3)
         time.sleep(sleep_sec)
-        git_cmd(nest, "reset", "--soft", "HEAD~1")
+        stash_before = stash_count(nest)
         rc_pull, _ = git_cmd(nest, "pull", "--rebase", "--autostash", "-q")
         if rc_pull != 0:
             git_cmd(nest, "rebase", "--abort")
+            warn(f"rebase conflict with the remote; memory kept in a local commit, resolve with `git -C {nest} pull --rebase`")
             break
-        git_cmd(nest, "commit", "-m", commit_msg, "--", rel)
+        if stash_count(nest) > stash_before or has_conflicts(nest):
+            warn(f"autostash conflict; uncommitted changes parked in `git -C {nest} stash list`, nothing pushed")
+            break
 
     print("{}")
 

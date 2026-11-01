@@ -51,8 +51,12 @@ USAGE
   exit 2
 fi
 
-# Expand ~ in config path
-eval CONFIG_PATH="$CONFIG_PATH"
+# Expand a leading ~ only; never evaluate the path as shell code (a path with
+# spaces or shell characters must stay one literal path).
+case "$CONFIG_PATH" in
+  "~") CONFIG_PATH="$HOME" ;;
+  "~/"*) CONFIG_PATH="$HOME/${CONFIG_PATH#\~/}" ;;
+esac
 
 # Resolve (host, agent-id) via shared identity helper. Generic installer uses
 # the deterministic one-per-host layout: agents/<host>/<prefix>/
