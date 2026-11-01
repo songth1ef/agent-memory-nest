@@ -20,7 +20,12 @@ $TargetMd      = if ($env:WORKBUDDY_AGENT_NEST_MD) { $env:WORKBUDDY_AGENT_NEST_M
 # Python is required for the shared bootstrap helper
 $PythonCmd = $null
 foreach ($Cand in @("python3", "python", "py")) {
-    if (Get-Command $Cand -ErrorAction SilentlyContinue) { $PythonCmd = $Cand; break }
+    # The WindowsApps "python3"/"python" stubs exist as commands but only open the
+    # Store (exit 9009), so a candidate counts only if it actually runs.
+    if (Get-Command $Cand -ErrorAction SilentlyContinue) {
+        & $Cand -c "import sys" 2>$null
+        if ($LASTEXITCODE -eq 0) { $PythonCmd = $Cand; break }
+    }
 }
 if (-not $PythonCmd) {
     throw "python3 (or python / py) not found -- required by agent-nest installer"
