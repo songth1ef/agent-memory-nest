@@ -11,7 +11,7 @@ Every coding agent now has some memory, but each one keeps it to itself:
 
 - **Bound to one machine.** Claude Code, Codex, Gemini CLI, Kimi Code, Antigravity, Hermes and OpenClaw all store memory locally. A new laptop starts from zero.
 - **Bound to one vendor.** What Claude learned stays with Claude. Switch to Codex and you explain everything again.
-- **Bound to one account.** When a subscription ends, an account is banned or a tool shuts down, the memory goes with it.
+- **Bound to one account.** When a subscription ends, an account is banned or a tool shuts down, **months of accumulated memory vanish overnight, with no way to get them back.**
 
 agent-memory-nest moves that memory into a git repository you own. Every agent reads from the same nest and writes back to it, so they all work from one shared mind. A hive mind, not a set of strangers.
 
