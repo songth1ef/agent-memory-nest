@@ -27,7 +27,7 @@ agent-memory-nest moves that memory into a git repository you own. Every agent r
 - **More than memory.** The nest also carries rules and direction, with a fixed priority order for resolving conflicts, so a fleet of agents follows the same guidance instead of only sharing notes.
 - **Clear write boundaries.** Each agent writes only to its own folder. Shared memory changes only through a reviewed distillation step.
 - **Load what the task needs.** A small resident layer loads at session start, and everything else is read on demand, so context stays small as memory grows.
-- **Private by design.** The nest is meant to live in a private repository, and can be encrypted end to end with git-crypt.
+- **Private by design.** The nest is meant to live in a private repository, and can be encrypted end to end with git-crypt: **once encrypted, not even GitHub staff can read what your agents remember.**
 
 ## How you use it
 
