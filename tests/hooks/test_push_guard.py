@@ -36,6 +36,10 @@ class PushGuardTests(unittest.TestCase):
             "https://github.com/songth1ef/agent-memory-nest.git",
             "git@github.com:songth1ef/agent-memory-nest.git",
             f"https://github.com/SongTh1ef/{NESTWORK}",
+            "ssh://git@github.com:22/songth1ef/agent-memory-nest.git",
+            "ssh://git@ssh.github.com:443/songth1ef/agent-memory-nest.git",
+            "git@github.com:/songth1ef/agent-memory-nest.git",
+            "https://github.com//songth1ef/agent-memory-nest/",
         ):
             with self.subTest(url=url):
                 self.assertEqual(self.push(url), 1)

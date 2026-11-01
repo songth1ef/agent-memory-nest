@@ -42,7 +42,7 @@ fi
 # and without a trailing .git or slash, so one pattern covers them all.
 normalize() {
   printf '%s' "$1" | tr '[:upper:]' '[:lower:]' \
-    | sed -E 's#^[a-z+]+://##; s#^[^@/]+@##; s#^([^/:]+):#\1/#; s#/+$##; s#\.git$##'
+    | sed -E 's#^[a-z+]+://##; s#^[^@/]+@##; s#^([^/:]+):[0-9]+/#\1/#; s#^([^/:]+):#\1/#; s#//+#/#g; s#^ssh\.github\.com/#github.com/#; s#/+$##; s#\.git$##'
 }
 
 url="$(normalize "$REMOTE_URL")"

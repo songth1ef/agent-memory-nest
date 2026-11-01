@@ -24,6 +24,7 @@ def upsert_agent_nest_hooks(
     start_cmd = f'{py_bin} "{start_script}" "{agent_nest_path}" "{host}" "{agent_id}"'
     sync_cmd = f'{py_bin} "{sync_script}" "{agent_nest_path}" "{host}" "{agent_id}"'
 
+    data.pop("nest" + "work", None)  # entry left by the former Nestwork installer
     data["agent-nest"] = {
         "PreInvocation": [
             {

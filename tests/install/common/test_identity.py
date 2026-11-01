@@ -109,5 +109,19 @@ class IdentityTests(unittest.TestCase):
             shutil.rmtree(TMP_ROOT)
 
 
+    def test_one_off_legacy_env_override_is_not_saved(self) -> None:
+        TMP_ROOT.mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=TMP_ROOT) as tmp:
+            home = Path(tmp)
+            (home / ".agent_nest_host").write_text("desk\n", encoding="utf-8")
+            env_name = NESTWORK.upper() + "_HOST"
+            result = subprocess.run(
+                [sys.executable, str(IDENTITY), "claude", "--with-suffix"],
+                capture_output=True, text=True, check=True,
+                env={**os.environ, "HOME": str(home), "USERPROFILE": str(home), env_name: "temp"},
+            )
+            self.assertEqual(result.stdout.splitlines()[0], "temp")
+            self.assertEqual((home / ".agent_nest_host").read_text(encoding="utf-8").strip(), "desk")
+
 if __name__ == "__main__":
     unittest.main()

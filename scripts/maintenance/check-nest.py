@@ -29,6 +29,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from urllib.parse import unquote
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 import nest_config  # noqa: E402
@@ -36,7 +37,8 @@ import nest_config  # noqa: E402
 CONTEXT_DIRS = ("queen", "shared", "agents", "projects", "workflow")
 SKIP_PARTS = {"local", "outbox", "comms", "inbox", "archive"}
 INDEX_NAMES = {"memory.md", "resident.md", "config.md"}
-LINK_RE = re.compile(r"\]\(([^)#\s]+\.md)(?:#[^)]*)?\)")
+LINK_RE = re.compile(r"\]\(\s*(<[^>]+>|[^)\s]+)")
+SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
 
 
 def _skipped(rel: Path) -> bool:
@@ -74,7 +76,15 @@ def _links(index: Path):
         text = index.read_text(encoding="utf-8")
     except OSError:
         return set()
-    return {(index.parent / m).resolve() for m in LINK_RE.findall(text)}
+    targets = set()
+    for raw in LINK_RE.findall(text):
+        target = raw[1:-1] if raw.startswith("<") else raw
+        target = unquote(target.split("#", 1)[0])
+        # Web links and anchors are not files in the nest.
+        if not target.endswith(".md") or SCHEME_RE.match(target) or target.startswith("/"):
+            continue
+        targets.add((index.parent / target).resolve())
+    return targets
 
 
 def check(root: Path, scopes, host=None):

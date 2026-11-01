@@ -68,5 +68,14 @@ class AntigravitySyncTests(unittest.TestCase):
         self.assertIn("edited here", git(self.a, "show", f"HEAD:{self.memory_rel}").stdout)
 
 
+    def test_clean_tree_still_delivers_a_commit_whose_push_failed(self) -> None:
+        git(self.a, "remote", "set-url", "--push", "origin", str(self.origin) + "-missing")
+        (self.a / self.memory_rel).write_text("line one\noffline\n", encoding="utf-8")
+        self.run_sync()
+        self.assertNotEqual(git(self.a, "rev-parse", "HEAD").stdout, git(self.origin, "rev-parse", "main").stdout)
+        git(self.a, "remote", "set-url", "--push", "origin", str(self.origin))
+        self.run_sync()
+        self.assertEqual(git(self.a, "rev-parse", "HEAD").stdout, git(self.origin, "rev-parse", "main").stdout)
+
 if __name__ == "__main__":
     unittest.main()

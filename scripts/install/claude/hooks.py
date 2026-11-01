@@ -35,7 +35,7 @@ def is_agent_nest_hook(cmd: str, host: str, agent_id: str) -> bool:
         return True
     if "sync-local-history.sh" in cmd:
         return True
-    if "session-start.sh" in cmd:
+    if "scripts/hooks/session-start.sh" in cmd.replace("\\", "/"):
         return True
     if f"memory: update {agent_id}" in cmd or f"memory: update {host}/{agent_id}" in cmd:
         return True
@@ -44,14 +44,29 @@ def is_agent_nest_hook(cmd: str, host: str, agent_id: str) -> bool:
     return False
 
 
+def strip_entry(entry: dict, host: str, agent_id: str):
+    """Return the entry without agent-nest commands, or None if nothing is left.
+
+    Every hook in the entry is checked, so a user's own command that shares an
+    entry with ours survives.
+    """
+    hooks = entry.get("hooks") or []
+    kept = [h for h in hooks
+            if not is_agent_nest_hook((h or {}).get("command", ""), host, agent_id)]
+    if not kept:
+        return None
+    if len(kept) == len(hooks):
+        return entry
+    return {**entry, "hooks": kept}
+
+
+def strip_event(hooks: dict, event: str, host: str, agent_id: str) -> list:
+    return [e for e in (strip_entry(e, host, agent_id) for e in hooks.get(event, [])) if e]
+
+
 def upsert(hooks: dict, event: str, matcher: str, cmd: str,
            host: str, agent_id: str) -> None:
-    entries = hooks.get(event, [])
-    filtered = []
-    for e in entries:
-        inner = (e.get("hooks") or [{}])[0].get("command", "")
-        if not is_agent_nest_hook(inner, host, agent_id):
-            filtered.append(e)
+    filtered = strip_event(hooks, event, host, agent_id)
     filtered.append({
         "matcher": matcher,
         "hooks":   [{"type": "command", "command": cmd}],
@@ -61,10 +76,7 @@ def upsert(hooks: dict, event: str, matcher: str, cmd: str,
 
 def remove_entries(hooks: dict, event: str, host: str, agent_id: str) -> None:
     """Drop agent-nest entries from an event no longer registered."""
-    kept = [
-        e for e in hooks.get(event, [])
-        if not is_agent_nest_hook((e.get("hooks") or [{}])[0].get("command", ""), host, agent_id)
-    ]
+    kept = strip_event(hooks, event, host, agent_id)
     if kept:
         hooks[event] = kept
     else:

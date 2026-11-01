@@ -28,11 +28,13 @@ def main() -> int:
         print(f"agent-nest Antigravity hooks: failed to read {hooks_path}")
         return 1
 
-    if "agent-nest" not in data:
+    ours = [key for key in ("agent-nest", "nest" + "work") if key in data]
+    if not ours:
         print(f"agent-nest Antigravity hooks: no agent-nest entry in {hooks_path} (nothing to remove)")
         return 0
 
-    del data["agent-nest"]
+    for key in ours:
+        del data[key]
 
     with open(hooks_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)

@@ -168,6 +168,8 @@ def main() -> int:
         or os.environ.get("AGENT_NEST_AGENT_ID", "").strip()
         or os.environ.get("HIVE" + "QUEEN_HOST", "").strip()
         or os.environ.get("HIVE" + "QUEEN_AGENT_ID", "").strip()
+        or os.environ.get(NESTWORK.upper() + "_HOST", "").strip()
+        or os.environ.get(NESTWORK.upper() + "_AGENT_ID", "").strip()
     )
     if not has_override:
         write_one_line(HOST_FILE, host)

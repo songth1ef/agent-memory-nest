@@ -6,7 +6,6 @@ When the agent turn terminates, commit + push this agent's directory
 
 Safety: refuses to commit if git-crypt is locked or unconfigured, so
 plaintext is never pushed to an encrypted-at-rest repo.
-Throttles high-frequency local/ only changes to local_commit_min_interval_sec.
 Always outputs {} (never blocks agent completion).
 """
 
@@ -62,17 +61,6 @@ def crypt_safe(nest: str) -> bool:
     return True
 
 
-def read_setting_int(nest: str, host: str, key: str, default: int) -> int:
-    settings_file = os.path.join(nest, "agents", host, "settings.json")
-    if not os.path.isfile(settings_file):
-        return default
-    try:
-        with open(settings_file, "r", encoding="utf-8") as f:
-            val = json.load(f).get(key, default)
-            return int(val)
-    except Exception:  # noqa: BLE001
-        return default
-
 
 def main() -> None:
     if len(sys.argv) < 4:
@@ -97,28 +85,19 @@ def main() -> None:
 
     git_cmd(nest, "add", rel)
     rc, _ = git_cmd(nest, "diff", "--cached", "--quiet", "--", rel)
-    if rc == 0:
-        print("{}")
-        return
-
-    # Check throttle if only files under local/ changed
-    local_rel = f"{rel}local/"
-    rc_diff, diff_files = git_cmd(
-        nest, "diff", "--cached", "--name-only", "--", rel, f":(exclude){local_rel}*"
-    )
-    if not diff_files.strip():
-        interval = read_setting_int(nest, host, "local_commit_min_interval_sec", 3600)
-        rc_ts, last_ts = git_cmd(nest, "log", "-1", "--format=%ct", "--", local_rel)
-        if rc_ts == 0 and last_ts.strip().isdigit():
-            elapsed = int(time.time()) - int(last_ts.strip())
-            if elapsed < interval:
-                git_cmd(nest, "reset", "-q", "HEAD", "--", local_rel)
-                print("{}")
-                return
-
-    commit_msg = f"memory: update {host}/{aid}"
-    rc, _ = git_cmd(nest, "commit", "-m", commit_msg, "--", rel)
     if rc != 0:
+        commit_msg = f"memory: update {host}/{aid}"
+        rc, _ = git_cmd(nest, "commit", "-m", commit_msg, "--", rel)
+        if rc != 0:
+            print("{}")
+            return
+
+    # Push whenever local commits are ahead of upstream, not only right after a
+    # commit: an earlier push may have failed, and a clean tree must not stop
+    # this safety net from delivering it.
+    rc, _ = git_cmd(nest, "rev-parse", "-q", "--verify", "@{u}")
+    rc_ahead, ahead = git_cmd(nest, "rev-list", "--count", "@{u}..HEAD")
+    if rc != 0 or rc_ahead != 0 or not ahead.strip().isdigit() or int(ahead) == 0:
         print("{}")
         return
 

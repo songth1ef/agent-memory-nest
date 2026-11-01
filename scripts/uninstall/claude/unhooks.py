@@ -22,7 +22,7 @@ import sys
 # The matching installer lives in scripts/install/claude/hooks.py.
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "install", "claude"))
-from hooks import is_agent_nest_hook  # noqa: E402
+from hooks import strip_entry  # noqa: E402
 
 EVENTS = ["SessionStart", "PreToolUse", "PostToolUse", "Stop", "SessionEnd"]
 
@@ -56,11 +56,11 @@ def main() -> int:
             continue
         kept = []
         for e in entries:
-            inner = (e.get("hooks") or [{}])[0].get("command", "")
-            if is_agent_nest_hook(inner, host, agent_id):
+            stripped = strip_entry(e, host, agent_id)
+            if stripped is not e:
                 removed += 1
-            else:
-                kept.append(e)
+            if stripped:
+                kept.append(stripped)
         if kept:
             hooks[event] = kept
         else:

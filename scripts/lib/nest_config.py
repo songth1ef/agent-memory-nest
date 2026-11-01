@@ -99,7 +99,7 @@ def _merge(base: dict, override: dict) -> dict:
 
 def _read(path: Path) -> dict:
     try:
-        return parse_front_matter(path.read_text(encoding="utf-8"))
+        return parse_front_matter(path.read_text(encoding="utf-8-sig"))
     except OSError:
         return {}
 

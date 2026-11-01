@@ -124,5 +124,19 @@ class CheckerTests(unittest.TestCase):
         self.assertEqual(run_checker(self.root, *args).stdout, "")
 
 
+    def test_web_links_and_encoded_names_are_handled(self) -> None:
+        write(self.root, f"{self.agent}/memory.md",
+              "# Memory\n- [spec](https://github.com/x/y/blob/main/AGENTS.md)\n"
+              "- [notes](my%20notes.md) — notes\n- [plan](<my plan.md>) — plan\n- [top](#memory)\n")
+        write(self.root, f"{self.agent}/my notes.md", TOPIC)
+        write(self.root, f"{self.agent}/my plan.md", TOPIC)
+        result = run_checker(self.root)
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_config_with_a_bom_is_still_read(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "config.md").write_bytes("\ufeff---\nsplit:\n  max_lines: 42\n---\n".encode("utf-8"))
+            self.assertEqual(nest_config.get(nest_config.load(tmp), "split.max_lines"), 42)
+
 if __name__ == "__main__":
     unittest.main()

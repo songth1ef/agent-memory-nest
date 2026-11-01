@@ -27,14 +27,24 @@ Run these in your private nest, on one machine, with a clean working tree.
      || git remote add upstream https://github.com/songth1ef/agent-memory-nest.git
    git fetch upstream main
    git archive upstream/main -- scripts/maintenance/update.sh | tar -x
+   git commit -qm "chore: take the agent-memory-nest update.sh" -- scripts/maintenance/update.sh
    bash scripts/maintenance/update.sh
    ```
+
+   The new `update.sh` is committed first because it refuses to run on a working
+   tree with uncommitted changes.
 
 2. **Delete the files 1.0 no longer uses.** `update.sh` adds and replaces files but never
    deletes them. Keep `scripts/hooks/nestwork.sh` for now: machines that are not
    reinstalled yet still call it.
 
+   The flat installers are replaced by per-tool folders (`scripts/install/<tool>/`);
+   removing the old ones keeps anyone from reinstalling the old hooks out of habit.
+
    ```bash
+   git rm -q --ignore-unmatch ':(glob)scripts/install/*.sh' ':(glob)scripts/install/*.ps1' \
+     ':(glob)scripts/install/_*.py' ':(glob)scripts/uninstall/*.sh' ':(glob)scripts/uninstall/*.ps1' \
+     ':(glob)scripts/uninstall/_*.py' scripts/maintenance/sync-claude-md.sh
    git rm -q --ignore-unmatch scripts/hooks/export-claude-mem.sh \
      scripts/hooks/sync-local-history.* scripts/hooks/launch-local-history-sync.py \
      scripts/hooks/snapshot-local-orphan.sh scripts/maintenance/memory-index.py \
@@ -57,6 +67,12 @@ Run these in your private nest, on one machine, with a clean working tree.
    Old topic-index markers in `memory.md` can stay; the links between them still count
    as the index.
 
+   **Fix what the checker reports before reinstalling.** A 3.x nest usually has topic
+   files without a `description` line, and from 1.0 on the Stop hook hands every
+   problem in an agent's folder back to that agent at the end of each turn. Fix them
+   now (an agent can add the front matter in one pass), or set `check_on_stop: false`
+   in `config.md` until you have.
+
 5. **Reinstall on every machine.** Pull, then run the installer for each tool. The
    installer reads the old identity files, so each machine keeps its host and agent ids,
    and it replaces the old hooks and startup blocks instead of adding a second copy.
@@ -66,16 +82,19 @@ Run these in your private nest, on one machine, with a clean working tree.
    bash ~/your-nest/scripts/install/claude/install.sh   # and codex/install.sh, kimi/install.sh, ...
    ```
 
-   For Codex, run `/hooks` once afterwards to trust the changed hooks.
+   For Codex, run `/hooks` once afterwards to trust the changed hooks. For
+   Antigravity, the old `~/.gemini/config/nestwork/` state folder can be deleted after
+   reinstalling.
 
 6. **Remove the last old hook script** once every machine has been reinstalled:
 
    ```bash
-   git rm -q scripts/hooks/nestwork.sh
+   git rm -q --ignore-unmatch scripts/hooks/nestwork.sh SOUL.md
    git commit -m "chore: remove the Nestwork hook script" && git push
    ```
 
-   Until then, machines that still run the old hooks keep syncing through it. The old
+   Until then, machines that still run the old hooks keep syncing through it (and an
+   old OpenClaw install still links `SOUL.md`). The old
    SessionEnd hooks for local history and claude-mem point at scripts deleted in step 2,
    so they print an error at session end until that machine is reinstalled; memory sync
    is not affected.
