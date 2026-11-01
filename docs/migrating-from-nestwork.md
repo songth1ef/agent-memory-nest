@@ -1,12 +1,12 @@
 # Migrating from Nestwork
 
-Nestwork was renamed to agent-memory-nest and simplified in protocol 4.0. Your
+Nestwork was renamed to agent-memory-nest and simplified in protocol 1.0. Your
 memory, rules and history carry over unchanged; what changes is the protocol
 layer, a few file names and the tool installs on each machine.
 
 ## What changed
 
-| Before (Nestwork, protocol 3.x) | Now (agent-memory-nest, protocol 4.0) |
+| Before (Nestwork, protocol 3.x) | Now (agent-memory-nest, protocol 1.0) |
 |---|---|
 | `scripts/hooks/nestwork.sh`, `~/.nestwork_host`, `~/.nestwork_id_<tool>`, `NESTWORK_*` | `scripts/hooks/agent-nest.sh`, `~/.agent_nest_host`, `~/.agent_nest_id_<tool>`, `AGENT_NEST_*` |
 | Limits table in `AGENTS.md` plus `queen/limits.md` | `split` and `resident` settings in `config.md` |
@@ -30,7 +30,7 @@ Run these in your private nest, on one machine, with a clean working tree.
    bash scripts/maintenance/update.sh
    ```
 
-2. **Delete the files 4.0 no longer uses.** `update.sh` adds and replaces files but never
+2. **Delete the files 1.0 no longer uses.** `update.sh` adds and replaces files but never
    deletes them. Keep `scripts/hooks/nestwork.sh` for now: machines that are not
    reinstalled yet still call it.
 
@@ -50,7 +50,7 @@ Run these in your private nest, on one machine, with a clean working tree.
 
    ```bash
    python3 scripts/maintenance/check-nest.py
-   git commit -m "chore: migrate to agent-memory-nest protocol 4.0"
+   git commit -m "chore: migrate to agent-memory-nest protocol 1.0"
    git push
    ```
 

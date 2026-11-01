@@ -2,9 +2,9 @@
 
 [English](CHANGELOG.md) | **中文**
 
-协议版本号为 `主版本.次版本`：次版本向后兼容，主版本可能需要迁移。4.0 之前的历史属于 Nestwork。
+协议版本号为 `主版本.次版本`：次版本向后兼容，主版本可能需要迁移。改名后版本号从 1.0 重新开始；此前的历史属于 Nestwork，它的最后一个协议版本是 3.2。
 
-## 4.0.0（协议 4.0）—— agent-memory-nest
+## 1.0.0（协议 1.0）—— agent-memory-nest
 
 Nestwork 改名为 agent-memory-nest，并精简协议。已有的巢按
 [docs/migrating-from-nestwork.md](docs/migrating-from-nestwork.md) 迁移。

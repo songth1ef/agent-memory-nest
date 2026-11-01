@@ -1,6 +1,6 @@
 # Documentation
 
-- [Migrating from Nestwork](migrating-from-nestwork.md): moving an existing nest to protocol 4.0
+- [Migrating from Nestwork](migrating-from-nestwork.md): moving an existing nest to protocol 1.0
 - [Troubleshooting](troubleshooting.md): common problems and their fixes
 - [Agent mailbox](agent-mailbox.md): agents leaving each other tasks and notes
 - [Tool memory carryover](tool-memory-carryover.md): bringing a tool's local memory into the nest

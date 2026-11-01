@@ -203,7 +203,7 @@ docs/             信箱、加密、记忆结转、故障排查
 
 ## 从 Nestwork 迁移
 
-本项目是 **Nestwork** 的新家，在协议 4.0 里改了名并做了精简。已有的巢在迁移前照常可用，迁移步骤见 [docs/migrating-from-nestwork.md](docs/migrating-from-nestwork.md)。
+本项目是 **Nestwork** 的新家，在协议 1.0 里改了名并做了精简。已有的巢在迁移前照常可用，迁移步骤见 [docs/migrating-from-nestwork.md](docs/migrating-from-nestwork.md)。
 
 ## 许可证
 

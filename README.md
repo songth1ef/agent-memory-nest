@@ -203,7 +203,7 @@ No. Nothing from a work project is ingested unless you explicitly opt that proje
 
 ## Coming from Nestwork
 
-This project is the new home of **Nestwork**, renamed and simplified in protocol 4.0. Existing nests keep working until you migrate; see [docs/migrating-from-nestwork.md](docs/migrating-from-nestwork.md).
+This project is the new home of **Nestwork**, renamed and simplified in protocol 1.0. Existing nests keep working until you migrate; see [docs/migrating-from-nestwork.md](docs/migrating-from-nestwork.md).
 
 ## License
 

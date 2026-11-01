@@ -3,9 +3,10 @@
 **English** | [中文](CHANGELOG.zh.md)
 
 Protocol versions are `MAJOR.MINOR`: a minor version is backward compatible, a
-major version may need migration. History before 4.0 belongs to Nestwork.
+major version may need migration. Numbering restarts at 1.0 with the new name;
+history before it belongs to Nestwork, whose last protocol was 3.2.
 
-## 4.0.0 (protocol 4.0) — agent-memory-nest
+## 1.0.0 (protocol 1.0) — agent-memory-nest
 
 Nestwork is renamed to agent-memory-nest and the protocol is simplified.
 Existing nests migrate with [docs/migrating-from-nestwork.md](docs/migrating-from-nestwork.md).

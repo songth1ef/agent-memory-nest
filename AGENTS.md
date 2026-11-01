@@ -1,4 +1,4 @@
-<!-- protocol-version: 4.0 -->
+<!-- protocol-version: 1.0 -->
 # AGENT-MEMORY-NEST BOOTSTRAP
 
 Every agent that loads this file shares one nest: a private git repository that
