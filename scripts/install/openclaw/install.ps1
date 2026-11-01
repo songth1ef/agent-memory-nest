@@ -59,16 +59,6 @@ if ($LASTEXITCODE -ne 0) {
     throw "OpenClaw AGENTS.md bootstrap injection failed (exit $LASTEXITCODE)"
 }
 
-# 4. Copy SOUL.md (Windows symlinks require elevation; copy instead)
-$SoulSrc = "$AgentNestPath\SOUL.md"
-$SoulDst = "$OpenclawDir\SOUL.md"
-if (-not (Test-Path $SoulDst)) {
-    Copy-Item $SoulSrc $SoulDst
-    Write-Host "v copied SOUL.md"
-} else {
-    Write-Host "v SOUL.md already exists"
-}
-
 Write-Host ""
 Write-Host "OK agent-nest installed for OpenClaw"
 Write-Host "   agent  : $NestHost/$AgentId"

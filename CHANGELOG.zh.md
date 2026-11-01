@@ -38,3 +38,5 @@ Nestwork 改名为 agent-memory-nest，并精简协议。已有的巢按
 - 把本地历史同步到每个 agent 孤儿分支的功能，以及 claude-mem 导出。
 - 上游同步的 GitHub workflow；`scripts/maintenance/update.sh` 保留。
 - 旧仓库里面向搜索引擎的落地页和博客。
+- `SOUL.md`：OpenClaw 的完整启动指令已经写在它的 `AGENTS.md` 里。
+- `scripts/maintenance/sync-claude-md.sh`：`CLAUDE.md` 改为直接引用 `AGENTS.md`。

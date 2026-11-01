@@ -26,7 +26,7 @@ echo "-> agent id       : ${AGENT_ID:-<unknown>}"
 # 1. Remove the bootstrap block from workspace AGENTS.md
 python3 "$AGENT_NEST_PATH/scripts/uninstall/_common/unbootstrap.py" "$OPENCLAW_DIR/AGENTS.md"
 
-# 2. Remove the SOUL.md symlink if it was ours
+# 2. Remove the SOUL.md symlink left by older installs, if it was ours
 if [ -L "$OPENCLAW_DIR/SOUL.md" ] && \
    [ "$(readlink "$OPENCLAW_DIR/SOUL.md")" = "$AGENT_NEST_PATH/SOUL.md" ]; then
   rm "$OPENCLAW_DIR/SOUL.md"

@@ -42,7 +42,7 @@ Write-Host "-> agent id       : $AgentId"
     "$OpenClawDir\AGENTS.md"
 if ($LASTEXITCODE -ne 0) { throw "AGENTS.md bootstrap removal failed (exit $LASTEXITCODE)" }
 
-# 2. Remove the SOUL.md link if it was ours (symlink pointing into this checkout)
+# 2. Remove the SOUL.md link left by older installs, if it was ours
 $SoulPath = "$OpenClawDir\SOUL.md"
 if (Test-Path $SoulPath) {
     $Item = Get-Item $SoulPath -Force

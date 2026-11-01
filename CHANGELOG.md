@@ -45,3 +45,5 @@ Existing nests migrate with [docs/migrating-from-nestwork.md](docs/migrating-fro
 - Local history sync to per-agent orphan branches, and the claude-mem export.
 - The upstream-sync GitHub workflow; `scripts/maintenance/update.sh` remains.
 - Search-oriented landing pages and the blog from the old repository.
+- `SOUL.md`: OpenClaw already gets the full startup instructions in its `AGENTS.md`.
+- `scripts/maintenance/sync-claude-md.sh`: `CLAUDE.md` now just imports `AGENTS.md`.

@@ -44,14 +44,6 @@ mkdir -p "$OPENCLAW_DIR"
 python3 "$AGENT_NEST_PATH/scripts/install/_common/bootstrap.py" \
   "$OPENCLAW_DIR/AGENTS.md" "$AGENT_NEST_PATH" "$HOST" "$AGENT_ID"
 
-# 4. Symlink SOUL.md (no paths to interpolate -- symlink is safe)
-if [ ! -e "$OPENCLAW_DIR/SOUL.md" ]; then
-  ln -s "$AGENT_NEST_PATH/SOUL.md" "$OPENCLAW_DIR/SOUL.md"
-  echo "[ok] symlinked SOUL.md"
-else
-  echo "[ok] SOUL.md already exists"
-fi
-
 echo ""
 echo "OK agent-nest installed for OpenClaw"
 echo "   agent  : $HOST/$AGENT_ID"
