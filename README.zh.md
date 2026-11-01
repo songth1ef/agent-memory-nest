@@ -29,6 +29,43 @@ agent-memory-nest 把这些记忆搬进一个归你所有的 git 仓库。每个
 - **按任务加载。** 会话开始时只加载一层很小的常驻内容，其余按需读取，所以记忆越来越多，上下文也不会膨胀。
 - **天生私密。** 巢本来就应该放在私有仓库里，还可以用 git-crypt 全程加密：**加密后，哪怕是 GitHub 的工作人员也读不到你的记忆内容。**
 
+## 快速开始
+
+**最快的方式：** 把下面这段粘贴给你正在用的编码 agent（Claude Code、Codex、Kimi Code、Gemini CLI……），让它替你装好：
+
+```text
+帮我安装 agent-memory-nest（https://github.com/songth1ef/agent-memory-nest）。
+如果我还没有巢，就用这个模板建一个【私有】仓库：
+  gh repo create my-nest --private --template songth1ef/agent-memory-nest
+把我的巢 clone 到 ~/agent-memory-nest（已存在就 pull），然后运行你这个工具
+对应的安装脚本：scripts/install/<工具>/install.sh（Windows 用 install.ps1）。
+不要把仓库设为公开。装完告诉我装了什么。
+```
+
+或者手动一步步来：
+
+1. **用这个模板建一个私有巢。** 在 GitHub 上点 **Use this template**，选 **Private**；或者运行：
+
+   ```bash
+   gh repo create my-nest --private --template songth1ef/agent-memory-nest
+   ```
+
+2. **在你用的每台机器上 clone：**
+
+   ```bash
+   git clone git@github.com:<你的账号>/my-nest.git ~/agent-memory-nest
+   ```
+
+3. **给每个 agent 工具安装**（Windows 用对应的 `.ps1`）：
+
+   ```bash
+   bash ~/agent-memory-nest/scripts/install/claude/install.sh
+   ```
+
+4. **开一个新会话。** 有启动 hook 的工具会打印 `agent-nest context bundle`；任何工具都可以问 agent 一句「巢里关于我写了什么？」，确认它读到了规则。
+
+可选：把 `config.example.md` 复制成 `config.md`，调整拆分阈值、蒸馏提醒等设置。在 `queen/agent-rules.md` 写你的规则，在 `queen/strategy.md` 写你的目标。
+
 ## 怎么用
 
 装好之后，你照原来的方式干活就行：
@@ -106,6 +143,38 @@ agent-memory-nest 把这些记忆搬进一个归你所有的 git 仓库。每个
 
 作者从 2026 年 4 月起每天都在用这套方案：**10 台机器**（Windows、macOS、Linux 服务器和一部安卓手机）、**10 种 agent 工具**、**30 多个 agent 实例**，共用一个巢。协议里的规则来自日常使用中真实遇到的问题，而不是一份设计文档。
 
+## 支持的工具
+
+| 工具 | 安装 | 同步方式 |
+|---|---|---|
+| Claude Code | `scripts/install/claude/install.sh` | hook：会话开始、每次写入、回合结束（含规则检查） |
+| Codex | `scripts/install/codex/install.sh` | hook：每次写入、回合结束 |
+| Kimi Code | `scripts/install/kimi/install.sh` | hook：会话开始、每次写入、回合结束 |
+| Antigravity | `scripts/install/antigravity/install.sh` | hook：会话开始、回合结束 |
+| Gemini CLI | `scripts/install/gemini/install.sh` | 启动指令；agent 在会话结束时同步 |
+| Hermes | `scripts/install/hermes/install.sh` | 写在 `SOUL.md` 里的启动指令 |
+| OpenClaw | `scripts/install/openclaw/install.sh` | 启动指令 |
+| 豆包办公、WorkBuddy | `scripts/install/doubao/install.sh`、`scripts/install/workbuddy/install.sh` | 在对话里执行的启动指令 |
+| 任何读取 markdown 指令文件的工具 | `scripts/install/generic/install.sh <名称> <文件>` | 启动指令 |
+
+每个安装脚本都有对应的 PowerShell 版本，`scripts/uninstall/<工具>/` 里有配套的卸载脚本：只移除它装上的东西，永远不碰你的记忆。
+
+## 目录结构
+
+```
+queen/            agent-rules.md、strategy.md        由你来写
+shared/           resident.md、memory.md、主题文件    只在蒸馏时修改
+agents/<host>/<agent-id>/                            每个 agent 一个目录，只有它自己写
+agents/<host>/config.md                              单台机器的设置
+projects/         每个项目一份状态笔记
+workflow/         换了工作也带得走的方法
+decisions/        关于巢本身的决策记录
+config.md         整个巢的设置（从 config.example.md 复制）
+AGENTS.md         所有 agent 遵守的协议（CLAUDE.md 直接引用它）
+scripts/          安装、hook、蒸馏、规则检查、信箱
+docs/             信箱、加密、记忆结转、故障排查
+```
+
 ## 与其他方案对比
 
 | | 工具自带记忆 | 记忆服务器 | 记忆 SDK / 平台 | **agent-memory-nest** |
@@ -145,10 +214,10 @@ agent-memory-nest 把这些记忆搬进一个归你所有的 git 仓库。每个
 - **不做实时协作。** git 本来就是异步的。
 - **不做图形界面。** 一切都通过你的 agent 或 git 命令行完成。
 
-## 状态
+## 从 Nestwork 迁移
 
-本项目是 **Nestwork** 的新家。协议、安装脚本和文档正在迁移过来。迁移完成前，这个仓库只有这份 README。
+本项目是 **Nestwork** 的新家，在协议 1.0 里改了名并做了精简。已有的巢在迁移前照常可用，迁移步骤见 [docs/migrating-from-nestwork.md](docs/migrating-from-nestwork.md)。
 
 ## 许可证
 
-待定。
+[MIT](LICENSE)

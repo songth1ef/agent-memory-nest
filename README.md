@@ -29,6 +29,43 @@ agent-memory-nest moves that memory into a git repository you own. Every agent r
 - **Load what the task needs.** A small resident layer loads at session start, and everything else is read on demand, so context stays small as memory grows.
 - **Private by design.** The nest is meant to live in a private repository, and can be encrypted end to end with git-crypt: **once encrypted, not even GitHub staff can read what your agents remember.**
 
+## Quick start
+
+**The fastest way:** paste this into the coding agent you already use (Claude Code, Codex, Kimi Code, Gemini CLI…) and let it do the setup:
+
+```text
+Set up agent-memory-nest for me (https://github.com/songth1ef/agent-memory-nest).
+If I don't have a nest yet, create a PRIVATE repo from that template:
+  gh repo create my-nest --private --template songth1ef/agent-memory-nest
+Clone my nest to ~/agent-memory-nest (pull if it is already there), then run the
+installer for the tool you are: scripts/install/<tool>/install.sh
+(install.ps1 on Windows). Never make the repo public. Tell me what you installed.
+```
+
+Or step by step:
+
+1. **Create your private nest** from this template. On GitHub, click **Use this template** and choose **Private**, or run:
+
+   ```bash
+   gh repo create my-nest --private --template songth1ef/agent-memory-nest
+   ```
+
+2. **Clone it on every machine** you work on:
+
+   ```bash
+   git clone git@github.com:<you>/my-nest.git ~/agent-memory-nest
+   ```
+
+3. **Install it for each agent tool** you use (Windows: the matching `.ps1`):
+
+   ```bash
+   bash ~/agent-memory-nest/scripts/install/claude/install.sh
+   ```
+
+4. **Open a new session.** Tools with a session-start hook print `agent-nest context bundle`; in any tool, ask the agent "what does the nest say about me?" to check it read the rules.
+
+Optional: copy `config.example.md` to `config.md` to change split limits, the distillation reminder or other settings. Write your own rules in `queen/agent-rules.md` and your goals in `queen/strategy.md`.
+
 ## How you use it
 
 Once it is set up, you keep working the way you already do:
@@ -106,6 +143,38 @@ A default session start reads about **1/50** of what full loading would, and the
 
 The author has run this setup every day since April 2026: **10 machines** (Windows, macOS, Linux servers and an Android phone), **10 different agent tools** and **more than 30 agent instances**, all sharing one nest. The protocol's rules come from problems hit in that daily use, not from a design document.
 
+## Supported tools
+
+| Tool | Install | Sync |
+|---|---|---|
+| Claude Code | `scripts/install/claude/install.sh` | Hooks: session start, every write, end of turn (with layout check) |
+| Codex | `scripts/install/codex/install.sh` | Hooks: every write, end of turn |
+| Kimi Code | `scripts/install/kimi/install.sh` | Hooks: session start, every write, end of turn |
+| Antigravity | `scripts/install/antigravity/install.sh` | Hooks: session start, end of turn |
+| Gemini CLI | `scripts/install/gemini/install.sh` | Startup instructions; the agent syncs at session end |
+| Hermes | `scripts/install/hermes/install.sh` | Startup instructions in `SOUL.md` |
+| OpenClaw | `scripts/install/openclaw/install.sh` | Startup instructions |
+| Doubao Work, WorkBuddy | `scripts/install/doubao/install.sh`, `scripts/install/workbuddy/install.sh` | Startup instructions inside the conversation |
+| Any tool that reads a markdown instruction file | `scripts/install/generic/install.sh <name> <file>` | Startup instructions |
+
+Every installer has a PowerShell twin and a matching uninstaller in `scripts/uninstall/<tool>/`, which removes only what it added and never touches your memory.
+
+## Directory structure
+
+```
+queen/            agent-rules.md, strategy.md        you write these
+shared/           resident.md, memory.md, topics     changed only by distillation
+agents/<host>/<agent-id>/                            one folder per agent, written only by it
+agents/<host>/config.md                              settings for one machine
+projects/         one status note per project
+workflow/         methods that survive a change of job
+decisions/        decisions about the nest itself
+config.md         settings for the whole nest (from config.example.md)
+AGENTS.md         the protocol every agent follows (CLAUDE.md imports it)
+scripts/          installers, hooks, distillation, checker, mailbox
+docs/             mailbox, encryption, memory carryover, troubleshooting
+```
+
 ## Compared with other approaches
 
 | | Built-in tool memory | Memory server | Memory SDK / platform | **agent-memory-nest** |
@@ -145,10 +214,10 @@ No. Nothing from a work project is ingested unless you explicitly opt that proje
 - **No real-time collaboration.** Git is asynchronous by design.
 - **No GUI.** Everything happens through your agents or the git CLI.
 
-## Status
+## Coming from Nestwork
 
-This project is the new home of **Nestwork**. The protocol, installers and documentation are being migrated here. Until that lands, this repository holds only this README.
+This project is the new home of **Nestwork**, renamed and simplified in protocol 1.0. Existing nests keep working until you migrate; see [docs/migrating-from-nestwork.md](docs/migrating-from-nestwork.md).
 
 ## License
 
-To be decided.
+[MIT](LICENSE)

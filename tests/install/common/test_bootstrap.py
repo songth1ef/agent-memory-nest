@@ -1,0 +1,131 @@
+import subprocess
+import sys
+import unittest
+from pathlib import Path
+
+
+REPO_ROOT = next(p for p in Path(__file__).resolve().parents if (p / "AGENTS.md").is_file())
+BOOTSTRAP = REPO_ROOT / "scripts" / "install" / "_common" / "bootstrap.py"
+TMP_ROOT = REPO_ROOT / ".test-tmp"
+
+
+class BootstrapInjectorTests(unittest.TestCase):
+    def test_replaces_legacy_codex_global_startup_protocol(self) -> None:
+        legacy = """# Global Startup Protocol
+
+Before starting analysis, planning, or implementation in a new coding session, load:
+
+- `C:\\Users\\Administrator\\.codex\\repos\\codex\\bootstrap.md`
+
+Execution requirements:
+
+- Treat `bootstrap.md` as the entry protocol for the user's long-term context repository.
+"""
+
+        target = TMP_ROOT / "bootstrap-test-AGENTS.md"
+        try:
+            TMP_ROOT.mkdir(exist_ok=True)
+            target.write_text(legacy, encoding="utf-8")
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(BOOTSTRAP),
+                    str(target),
+                    "C:/code/nest",
+                    "workstation",
+                    "codex",
+                ],
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            updated = target.read_text(encoding="utf-8")
+            self.assertNotIn(".codex\\repos\\codex\\bootstrap.md", updated)
+            self.assertNotIn("Global Startup Protocol", updated)
+            self.assertIn("agent-memory-nest Startup Protocol", updated)
+        finally:
+            target.unlink(missing_ok=True)
+
+    def test_removes_legacy_codex_startup_when_agent_nest_marker_exists(self) -> None:
+        existing = """# Global Startup Protocol
+
+Before starting analysis, planning, or implementation in a new coding session, load:
+
+- `C:\\Users\\Administrator\\.codex\\repos\\codex\\bootstrap.md`
+
+<!-- agent-nest:begin -->
+old agent-nest block
+<!-- agent-nest:end -->
+"""
+
+        target = TMP_ROOT / "bootstrap-test-AGENTS-with-marker.md"
+        try:
+            TMP_ROOT.mkdir(exist_ok=True)
+            target.write_text(existing, encoding="utf-8")
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(BOOTSTRAP),
+                    str(target),
+                    "C:/code/nest",
+                    "workstation",
+                    "codex",
+                ],
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            updated = target.read_text(encoding="utf-8")
+            self.assertNotIn(".codex\\repos\\codex\\bootstrap.md", updated)
+            self.assertNotIn("Global Startup Protocol", updated)
+            self.assertNotIn("old agent-nest block", updated)
+            self.assertIn("agent-memory-nest Startup Protocol", updated)
+        finally:
+            target.unlink(missing_ok=True)
+
+    def test_replaces_legacy_github_agents_global_startup_protocol(self) -> None:
+        legacy = """# Global Startup Protocol
+
+Before starting analysis, planning, or implementation in a new coding session, load:
+
+- `/root/github/agents/bootstrap.md`
+
+Execution requirements:
+
+- Treat `bootstrap.md` as the entry protocol for the user's long-term context repository.
+"""
+
+        target = TMP_ROOT / "bootstrap-test-github-agents-AGENTS.md"
+        try:
+            TMP_ROOT.mkdir(exist_ok=True)
+            target.write_text(legacy, encoding="utf-8")
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(BOOTSTRAP),
+                    str(target),
+                    "/root/github/my-nest",
+                    "cloud-vm",
+                    "codex",
+                ],
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            updated = target.read_text(encoding="utf-8")
+            self.assertNotIn("/root/github/agents/bootstrap.md", updated)
+            self.assertNotIn("Global Startup Protocol", updated)
+            self.assertIn("agent-memory-nest Startup Protocol", updated)
+            self.assertIn("/root/github/my-nest/AGENTS.md", updated)
+        finally:
+            target.unlink(missing_ok=True)
+
+
+if __name__ == "__main__":
+    unittest.main()

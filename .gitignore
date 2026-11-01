@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+.test-tmp/
+
+# Machine-local files: unread-mail snapshots and other runtime artefacts.
+agents/*/*/local/
+
+# Nest-level generated files, rebuilt from git history at session start
+# (e.g. local/recent.md).
+/local/
