@@ -83,6 +83,10 @@ the source it summarises.
 - **What to keep.** Decisions, corrections, conventions, lessons and project
   state that will matter again. Not temporary task details or one-off debugging.
   Note the date and the source (a commit, a file, the user's words).
+- **Keep task artifacts out.** Build outputs, generated files and dependencies stay
+  with the project that produced them. The sync hook commits everything in a memory
+  folder, so anything left there reaches git history and every machine. As a safety
+  net, `agents/*/*/outputs/` and `node_modules` are ignored.
 - **Reuse before creating.** Read the index first and extend the file that already
   covers the topic. Create a new file only when none does.
 - **Split like a wiki.** A file over `split.max_lines` or `split.max_kb` (config)
