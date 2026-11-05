@@ -9,3 +9,7 @@ agents/*/*/local/
 # Nest-level generated files, rebuilt from git history at session start
 # (e.g. local/recent.md).
 /local/
+
+# Task artifacts and dependencies never belong in a memory folder (AGENTS.md section 4).
+agents/*/*/outputs/
+node_modules
